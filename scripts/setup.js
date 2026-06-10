@@ -1,10 +1,11 @@
-#!/usr/bin/env node
-const fs   = require('fs');
-const path = require('path');
+import fs   from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const root    = path.resolve(__dirname, '..');
-const example = path.join(root, '.env.example');
-const target  = path.join(root, '.env');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const root      = path.resolve(__dirname, '..');
+const example   = path.join(root, '.env.example');
+const target    = path.join(root, '.env');
 
 if (fs.existsSync(target)) {
   console.log('✅  .env já existe — nenhuma alteração feita.');
