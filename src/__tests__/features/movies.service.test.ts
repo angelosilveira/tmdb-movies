@@ -54,8 +54,8 @@ describe('TmdbMovieRepository', () => {
       expect(result.hasNextPage).toBe(true);
 
       // Raw API fields must NOT exist on domain entity
-      expect((result.items[0] as Record<string, unknown>)['vote_average']).toBeUndefined();
-      expect((result.items[0] as Record<string, unknown>)['poster_path']).toBeUndefined();
+      expect((result.items[0] as unknown as Record<string, unknown>)['vote_average']).toBeUndefined();
+      expect((result.items[0] as unknown as Record<string, unknown>)['poster_path']).toBeUndefined();
     });
 
     it('maps pagination fields to domain names', async () => {
@@ -64,7 +64,7 @@ describe('TmdbMovieRepository', () => {
       expect(result.totalPages).toBe(5);
       expect(result.totalResults).toBe(100);
       expect(result.items).toHaveLength(1);
-      expect((result as Record<string, unknown>)['results']).toBeUndefined();
+      expect((result as unknown as Record<string, unknown>)['results']).toBeUndefined();
     });
 
     it('returns Movie class instances with domain methods', async () => {
@@ -103,7 +103,7 @@ describe('TmdbMovieRepository', () => {
       expect(result.imdbId).toBe('tt0137523');
       expect(result.runtimeFormatted).toBe('2h 19min');
       expect(typeof result.isProfitable).toBe('function');
-      expect((result as Record<string, unknown>)['imdb_id']).toBeUndefined();
+      expect((result as unknown as Record<string, unknown>)['imdb_id']).toBeUndefined();
     });
   });
 });

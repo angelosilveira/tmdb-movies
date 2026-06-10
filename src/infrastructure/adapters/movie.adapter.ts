@@ -1,16 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// MOVIE ADAPTER
-//
-// Responsabilidade: converter os dados brutos da API do TMDB nos tipos de
-// domínio da aplicação. É a única camada que conhece a estrutura da API.
-//
-// Benefícios:
-//   • Se o TMDB renomear "vote_average" para "score", só esse arquivo muda.
-//   • Se a estrutura de imagens mudar, só a função de URL é atualizada aqui.
-//   • Os componentes React nunca veem campos snake_case ou null inesperados.
-//   • Lógica de negócio derivada (ratingLevel, runtimeFormatted) fica centralizada.
-// ─────────────────────────────────────────────────────────────────────────────
-
 import {
   TmdbGenre,
   TmdbMovie,
@@ -19,52 +6,33 @@ import {
   TmdbProductionCompany,
   TmdbSpokenLanguage,
 } from '@/infrastructure/api/tmdb.types';
-import {
-  FavoriteMovie,
-  Genre,
-  Movie,
-  MovieDetails,
-  PaginatedResult,
-  ProductionCompany,
-  RatingLevel,
-  SpokenLanguage,
-} from '@/shared/types/movie.types';
+import { MovieProps, RatingLevel }              from '@/domain/entities/Movie';
+import { MovieDetailsProps, Genre, ProductionCompany, SpokenLanguage } from '@/domain/entities/MovieDetails';
+import { FavoriteMovieProps }                   from '@/domain/entities/FavoriteMovie';
+import { PaginatedResult }                      from '@/domain/repositories/IMovieRepository';
 
-// ─── Image URL helpers ────────────────────────────────────────────────────────
+export const IMAGE_SIZES = {
+  poster:   { sm: 'w154', md: 'w300', lg: 'w500', original: 'original' },
+  backdrop: { sm: 'w300', md: 'w780', lg: 'w1280', original: 'original' },
+  logo:     { sm: 'w45',  md: 'w185', lg: 'w300' },
+} as const;
 
 const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p';
 
-export const IMAGE_SIZES = {
-  poster: { sm: 'w154', md: 'w300', lg: 'w500', original: 'original' },
-  backdrop: { sm: 'w300', md: 'w780', lg: 'w1280', original: 'original' },
-  logo: { sm: 'w45', md: 'w185', lg: 'w300' },
-} as const;
-
-function buildPosterUrl(
-  path: string | null,
-  size: keyof typeof IMAGE_SIZES.poster = 'md',
-): string | null {
+function buildPosterUrl(path: string | null, size: keyof typeof IMAGE_SIZES.poster = 'md'): string | null {
   if (!path) return null;
   return `${IMAGE_BASE_URL}/${IMAGE_SIZES.poster[size]}${path}`;
 }
 
-function buildBackdropUrl(
-  path: string | null,
-  size: keyof typeof IMAGE_SIZES.backdrop = 'lg',
-): string | null {
+function buildBackdropUrl(path: string | null, size: keyof typeof IMAGE_SIZES.backdrop = 'lg'): string | null {
   if (!path) return null;
   return `${IMAGE_BASE_URL}/${IMAGE_SIZES.backdrop[size]}${path}`;
 }
 
-function buildLogoUrl(
-  path: string | null,
-  size: keyof typeof IMAGE_SIZES.logo = 'md',
-): string | null {
+function buildLogoUrl(path: string | null, size: keyof typeof IMAGE_SIZES.logo = 'md'): string | null {
   if (!path) return null;
   return `${IMAGE_BASE_URL}/${IMAGE_SIZES.logo[size]}${path}`;
 }
-
-// ─── Rating helpers ───────────────────────────────────────────────────────────
 
 function resolveRatingLevel(rating: number): RatingLevel {
   if (rating >= 7.5) return 'excellent';
@@ -76,8 +44,6 @@ function formatRating(rating: number): string {
   return rating.toFixed(1);
 }
 
-// ─── Runtime helper ───────────────────────────────────────────────────────────
-
 function formatRuntime(minutes: number | null): string | null {
   if (!minutes || minutes <= 0) return null;
   const h = Math.floor(minutes / 60);
@@ -87,21 +53,14 @@ function formatRuntime(minutes: number | null): string | null {
   return `${h}h ${m}min`;
 }
 
-// ─── Release year helper ──────────────────────────────────────────────────────
-
 function extractReleaseYear(dateString: string): number | null {
   if (!dateString) return null;
   const year = parseInt(dateString.substring(0, 4), 10);
   return isNaN(year) ? null : year;
 }
 
-// ─── Sub-adapters ─────────────────────────────────────────────────────────────
-
 export function adaptGenre(raw: TmdbGenre): Genre {
-  return {
-    id: raw.id,
-    name: raw.name,
-  };
+  return { id: raw.id, name: raw.name };
 }
 
 export function adaptProductionCompany(raw: TmdbProductionCompany): ProductionCompany {
@@ -114,16 +73,10 @@ export function adaptProductionCompany(raw: TmdbProductionCompany): ProductionCo
 }
 
 export function adaptSpokenLanguage(raw: TmdbSpokenLanguage): SpokenLanguage {
-  return {
-    englishName: raw.english_name,
-    isoCode: raw.iso_639_1,
-    name: raw.name,
-  };
+  return { englishName: raw.english_name, isoCode: raw.iso_639_1, name: raw.name };
 }
 
-// ─── Main adapters ────────────────────────────────────────────────────────────
-
-export function adaptMovie(raw: TmdbMovie): Movie {
+export function adaptMovie(raw: TmdbMovie): MovieProps {
   return {
     id: raw.id,
     title: raw.title,
@@ -144,7 +97,7 @@ export function adaptMovie(raw: TmdbMovie): Movie {
   };
 }
 
-export function adaptMovieDetails(raw: TmdbMovieDetails): MovieDetails {
+export function adaptMovieDetails(raw: TmdbMovieDetails): MovieDetailsProps {
   return {
     id: raw.id,
     title: raw.title,
@@ -161,6 +114,7 @@ export function adaptMovieDetails(raw: TmdbMovieDetails): MovieDetails {
     isAdult: raw.adult,
     originalLanguage: raw.original_language,
     originalTitle: raw.original_title,
+    genreIds: (raw.genres ?? []).map((g) => g.id),
     genres: (raw.genres ?? []).map(adaptGenre),
     runtime: raw.runtime,
     runtimeFormatted: formatRuntime(raw.runtime),
@@ -175,9 +129,7 @@ export function adaptMovieDetails(raw: TmdbMovieDetails): MovieDetails {
   };
 }
 
-export function adaptPaginatedMovies(
-  raw: TmdbPaginatedResponse<TmdbMovie>,
-): PaginatedResult<Movie> {
+export function adaptPaginatedMovies(raw: TmdbPaginatedResponse<TmdbMovie>): PaginatedResult<MovieProps> {
   return {
     page: raw.page,
     items: (raw.results ?? []).map(adaptMovie),
@@ -191,35 +143,22 @@ export function adaptGenreList(genres: TmdbGenre[]): Genre[] {
   return (genres ?? []).map(adaptGenre);
 }
 
-// ─── Persistence adapter ──────────────────────────────────────────────────────
-// Garante que dados salvos no localStorage em versões antigas continuam
-// funcionando mesmo se o domínio mudar (forward/backward compatibility).
-
-export function adaptStoredFavorite(stored: unknown): FavoriteMovie | null {
+export function adaptStoredFavorite(stored: unknown): FavoriteMovieProps | null {
   if (!stored || typeof stored !== 'object') return null;
-
   const s = stored as Record<string, unknown>;
-
-  // Campos obrigatórios
   if (typeof s.id !== 'number' || typeof s.title !== 'string') return null;
 
-  // Suporte a registros antigos que ainda usavam snake_case (pre-adapter)
   const posterUrl =
-    typeof s.posterUrl === 'string'
-      ? s.posterUrl
-      : buildPosterUrl(typeof s.poster_path === 'string' ? s.poster_path : null);
+    typeof s.posterUrl === 'string' ? s.posterUrl
+    : buildPosterUrl(typeof s.poster_path === 'string' ? s.poster_path : null);
 
   const backdropUrl =
-    typeof s.backdropUrl === 'string'
-      ? s.backdropUrl
-      : buildBackdropUrl(typeof s.backdrop_path === 'string' ? s.backdrop_path : null);
+    typeof s.backdropUrl === 'string' ? s.backdropUrl
+    : buildBackdropUrl(typeof s.backdrop_path === 'string' ? s.backdrop_path : null);
 
   const rating =
-    typeof s.rating === 'number'
-      ? s.rating
-      : typeof s.vote_average === 'number'
-        ? s.vote_average
-        : 0;
+    typeof s.rating === 'number' ? s.rating
+    : typeof s.vote_average === 'number' ? s.vote_average : 0;
 
   return {
     id: s.id as number,
@@ -228,9 +167,8 @@ export function adaptStoredFavorite(stored: unknown): FavoriteMovie | null {
     posterUrl,
     backdropUrl,
     releaseDate: typeof s.releaseDate === 'string' ? s.releaseDate : '',
-    releaseYear: typeof s.releaseYear === 'number' ? s.releaseYear : extractReleaseYear(
-      typeof s.release_date === 'string' ? s.release_date : '',
-    ),
+    releaseYear: typeof s.releaseYear === 'number' ? s.releaseYear
+      : extractReleaseYear(typeof s.release_date === 'string' ? s.release_date : ''),
     rating,
     ratingFormatted: formatRating(rating),
     ratingLevel: resolveRatingLevel(rating),

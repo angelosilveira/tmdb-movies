@@ -125,11 +125,11 @@ describe('adaptMovie', () => {
   it('uses camelCase fields — no snake_case fields on output', () => {
     const movie = adaptMovie(rawMovie);
     // Domain type must not have raw API fields
-    expect((movie as Record<string, unknown>)['vote_average']).toBeUndefined();
-    expect((movie as Record<string, unknown>)['poster_path']).toBeUndefined();
-    expect((movie as Record<string, unknown>)['backdrop_path']).toBeUndefined();
-    expect((movie as Record<string, unknown>)['release_date']).toBeUndefined();
-    expect((movie as Record<string, unknown>)['genre_ids']).toBeUndefined();
+    expect((movie as unknown as Record<string, unknown>)['vote_average']).toBeUndefined();
+    expect((movie as unknown as Record<string, unknown>)['poster_path']).toBeUndefined();
+    expect((movie as unknown as Record<string, unknown>)['backdrop_path']).toBeUndefined();
+    expect((movie as unknown as Record<string, unknown>)['release_date']).toBeUndefined();
+    expect((movie as unknown as Record<string, unknown>)['genre_ids']).toBeUndefined();
   });
 });
 
@@ -186,7 +186,7 @@ describe('adaptMovieDetails', () => {
       isoCode: 'en',
       name: 'English',
     });
-    expect((details.spokenLanguages[0] as Record<string, unknown>)['iso_639_1']).toBeUndefined();
+    expect((details.spokenLanguages[0] as unknown as Record<string, unknown>)['iso_639_1']).toBeUndefined();
   });
 
   it('uses original-size backdrop for details page', () => {
@@ -215,7 +215,7 @@ describe('adaptPaginatedMovies', () => {
   it('renames results to items', () => {
     const result = adaptPaginatedMovies(rawPage);
     expect(result.items).toHaveLength(1);
-    expect((result as Record<string, unknown>)['results']).toBeUndefined();
+    expect((result as unknown as Record<string, unknown>)['results']).toBeUndefined();
   });
 
   it('sets hasNextPage to true when not on last page', () => {

@@ -7,7 +7,5 @@ export {
   adaptProductionCompany,
   adaptSpokenLanguage,
   adaptStoredFavorite,
-  buildPosterUrl,
-  buildBackdropUrl,
   IMAGE_SIZES,
 } from './movie.adapter';

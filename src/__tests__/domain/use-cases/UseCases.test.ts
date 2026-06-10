@@ -38,6 +38,7 @@ function createPaginatedResult(movies: Movie[]): PaginatedResult<Movie> {
 
 const mockMovieListRepo: IMovieListRepository = {
   getPopular: jest.fn().mockResolvedValue(createPaginatedResult([createMovie()])),
+  getByGenre: jest.fn().mockResolvedValue(createPaginatedResult([createMovie()])),
 };
 
 const mockMovieSearchRepo: IMovieSearchRepository = {
