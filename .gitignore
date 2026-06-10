@@ -17,5 +17,3 @@ yarn-debug.log*
 *.tsbuildinfo
 .vercel/
 
-# Temporário: remover após adicionar permissão workflow ao token
-# .github/workflows/
