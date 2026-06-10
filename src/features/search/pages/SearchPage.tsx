@@ -48,8 +48,8 @@ export const SearchPage: React.FC = () => {
     return () => observer.disconnect();
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-  const allMovies = data?.pages.flatMap((p) => p.results) ?? [];
-  const totalResults = data?.pages[0]?.total_results ?? 0;
+  const allMovies = data?.pages.flatMap((p) => p.items) ?? [];
+  const totalResults = data?.pages[0]?.totalResults ?? 0;
 
   if (!query) {
     return (
