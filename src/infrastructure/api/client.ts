@@ -1,8 +1,15 @@
 import axios, { AxiosError, AxiosInstance, AxiosResponse } from 'axios';
 import * as Sentry from '@sentry/react';
 
-const BASE_URL = import.meta.env.VITE_TMDB_BASE_URL || 'https://api.themoviedb.org/3';
-const API_KEY  = import.meta.env.VITE_TMDB_API_KEY;
+const IS_DEV    = import.meta.env.DEV;
+const API_KEY   = import.meta.env.VITE_TMDB_API_KEY;
+
+// Em desenvolvimento o Vite proxy evita CORS:
+//   /api/tmdb/movie/popular → proxy → api.themoviedb.org/3/movie/popular
+// Em produção chama direto — api_key como query param não dispara preflight.
+const BASE_URL  = IS_DEV
+  ? '/api/tmdb'
+  : (import.meta.env.VITE_TMDB_BASE_URL || 'https://api.themoviedb.org/3');
 
 export class ApiError extends Error {
   constructor(
