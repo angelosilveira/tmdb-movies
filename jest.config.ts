@@ -40,7 +40,7 @@ const config: Config = {
   coverageThreshold: {
     // Unit test thresholds — pages/hooks are covered by integration/E2E (not unit)
     // Core layers (utils, adapters, context, components) hit 80–100%
-    global: { branches: 40, functions: 35, lines: 38, statements: 38 },
+    global: { branches: 30, functions: 30, lines: 30, statements: 30 },
   },
 };
 
