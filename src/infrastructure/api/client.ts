@@ -2,17 +2,21 @@ import axios, { AxiosError, AxiosInstance, AxiosResponse } from 'axios';
 import * as Sentry from '@sentry/react';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// A autenticação do TMDB v3 suporta dois métodos:
-//   1. api_key como query param  (legado, menos seguro)
-//   2. Bearer token no header    (recomendado — oculta a chave da URL/logs)
+// Por que /api/tmdb e não https://api.themoviedb.org/3 diretamente?
 //
-// Usamos o método 2: Authorization: Bearer <VITE_TMDB_READ_TOKEN>
-// O token JWT (Read Access Token) é obtido em:
-//   https://www.themoviedb.org/settings/api  →  "API Read Access Token"
+//   O header Authorization: Bearer é "non-simple" e dispara um preflight
+//   OPTIONS. A API do TMDB não inclui Access-Control-Allow-Origin na resposta
+//   ao preflight → browser bloqueia com CORS error.
+//
+//   Solução: o browser chama /api/tmdb (mesma origem → sem CORS).
+//   O proxy (Vite em dev, Vercel Edge em prod) injeta o Bearer token
+//   e encaminha ao TMDB server-to-server, onde CORS não se aplica.
+//
+//   Dev:  Vite proxy  (vite.config.ts  → server.proxy)
+//   Prod: Vercel Edge (api/tmdb.ts     + vercel.json rewrites)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const BASE_URL    = import.meta.env.VITE_TMDB_BASE_URL  || 'https://api.themoviedb.org/3';
-const READ_TOKEN  = import.meta.env.VITE_TMDB_READ_TOKEN;
+const BASE_URL = '/api/tmdb';
 
 export class ApiError extends Error {
   constructor(
@@ -27,20 +31,18 @@ export class ApiError extends Error {
 
 function createApiClient(): AxiosInstance {
   const client = axios.create({
+    // Caminho relativo — sempre mesma origem, nunca CORS
     baseURL: BASE_URL,
     timeout: 10_000,
     headers: {
-      // Bearer token — nunca aparece na URL, não vaza em logs de proxy/CDN
-      'Authorization': `Bearer ${READ_TOKEN}`,
       'Content-Type': 'application/json;charset=utf-8',
     },
     params: {
-      // Apenas language como query param global — sem api_key na URL
       language: 'pt-BR',
     },
   });
 
-  // ─── Request interceptor ────────────────────────────────────────────────────
+  // ─── Request interceptor ─────────────────────────────────────────────────
   client.interceptors.request.use(
     (config) => config,
     (error) => {
@@ -49,7 +51,7 @@ function createApiClient(): AxiosInstance {
     },
   );
 
-  // ─── Response interceptor ───────────────────────────────────────────────────
+  // ─── Response interceptor ────────────────────────────────────────────────
   client.interceptors.response.use(
     (response: AxiosResponse) => response,
     (error: AxiosError) => {
