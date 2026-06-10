@@ -15,6 +15,7 @@ export const Header: React.FC = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const menuRef = useRef<HTMLDivElement>(null);
+  const hamburgerRef = useRef<HTMLButtonElement>(null);
 
   // Fecha menu ao navegar
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);
@@ -23,7 +24,10 @@ export const Header: React.FC = () => {
   useEffect(() => {
     if (!menuOpen) return;
     const handle = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const insideMenu   = menuRef.current?.contains(target);
+      const insideButton = hamburgerRef.current?.contains(target);
+      if (!insideMenu && !insideButton) {
         setMenuOpen(false);
       }
     };
@@ -161,6 +165,7 @@ export const Header: React.FC = () => {
 
             {/* Hamburger button — mobile only */}
             <button
+              ref={hamburgerRef}
               onClick={() => setMenuOpen((v) => !v)}
               className={clsx(
                 'md:hidden flex-shrink-0 flex flex-col justify-center items-center w-9 h-9 rounded-lg',
