@@ -3,18 +3,17 @@ export const config = { runtime: 'edge' };
 export default async function handler(request: Request): Promise<Response> {
   const url = new URL(request.url);
 
+  // /api/tmdb/movie/popular → /movie/popular
   const tmdbPath = url.pathname.replace(/^\/api\/tmdb/, '');
   const tmdbUrl  = `https://api.themoviedb.org/3${tmdbPath}${url.search}`;
 
-  // TMDB_READ_TOKEN (sem prefixo VITE_) é a variável server-side.
-  // Variáveis VITE_* são injetadas pelo Vite apenas no bundle do browser
-  // e NÃO ficam disponíveis em Edge Functions via process.env.
-  // Configure TMDB_READ_TOKEN nas Environment Variables da Vercel.
+  // TMDB_READ_TOKEN — variável server-side (sem prefixo VITE_)
+  // Configure em: Vercel → Settings → Environment Variables
   const readToken = process.env.TMDB_READ_TOKEN;
 
   if (!readToken) {
     return new Response(
-      JSON.stringify({ error: 'TMDB_READ_TOKEN não configurado nas variáveis de ambiente da Vercel.' }),
+      JSON.stringify({ error: 'TMDB_READ_TOKEN não configurado.' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } },
     );
   }
