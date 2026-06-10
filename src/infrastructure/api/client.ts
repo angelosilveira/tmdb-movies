@@ -1,15 +1,10 @@
 import axios, { AxiosError, AxiosInstance, AxiosResponse } from 'axios';
 import * as Sentry from '@sentry/react';
 
-const IS_DEV    = import.meta.env.DEV;
-const API_KEY   = import.meta.env.VITE_TMDB_API_KEY;
-
-// Em desenvolvimento o Vite proxy evita CORS:
-//   /api/tmdb/movie/popular → proxy → api.themoviedb.org/3/movie/popular
-// Em produção chama direto — api_key como query param não dispara preflight.
-const BASE_URL  = IS_DEV
-  ? '/api/tmdb'
-  : (import.meta.env.VITE_TMDB_BASE_URL || 'https://api.themoviedb.org/3');
+// Em dev: Vite proxy /api/tmdb → api.themoviedb.org (evita CORS)
+// Em prod: /api/tmdb → Vercel Serverless Function (api/tmdb.js) → TMDB
+// Em ambos: mesma origem para o browser, zero CORS
+const BASE_URL = '/api/tmdb';
 
 export class ApiError extends Error {
   constructor(
@@ -25,14 +20,19 @@ function createApiClient(): AxiosInstance {
   const client = axios.create({
     baseURL: BASE_URL,
     timeout: 10_000,
-    params: {
-      api_key:  API_KEY,
-      language: 'pt-BR',
-    },
   });
 
   client.interceptors.request.use(
-    (config) => config,
+    (config) => {
+      // Converte /movie/popular → path=/movie/popular como query param
+      // para a Serverless Function em prod; em dev o proxy reescreve a URL
+      if (config.url && import.meta.env.PROD) {
+        const path = config.url;
+        config.url = '';
+        config.params = { ...config.params, path };
+      }
+      return config;
+    },
     (error) => { Sentry.captureException(error); return Promise.reject(error); },
   );
 
@@ -42,7 +42,7 @@ function createApiClient(): AxiosInstance {
       const status  = error.response?.status ?? 0;
       const message = getErrorMessage(status);
       Sentry.captureException(error, {
-        extra: { url: error.config?.url, status, responseData: error.response?.data },
+        extra: { url: error.config?.url, status },
       });
       throw new ApiError(status, message);
     },
@@ -53,7 +53,7 @@ function createApiClient(): AxiosInstance {
 
 function getErrorMessage(status: number): string {
   const messages: Record<number, string> = {
-    401: 'API key inválida. Verifique o VITE_TMDB_API_KEY.',
+    401: 'API key inválida.',
     403: 'Acesso negado.',
     404: 'Conteúdo não encontrado.',
     429: 'Muitas requisições. Tente novamente.',
