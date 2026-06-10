@@ -122,8 +122,13 @@ export const SearchPage: React.FC = () => {
           role="list"
           aria-label={`Resultados da busca por ${query}`}
         >
-          {allMovies.map((movie) => (
-            <div key={movie.id} role="listitem">
+          {allMovies.map((movie, index) => (
+            <div
+              key={movie.id}
+              role="listitem"
+              className="animate-fade-in"
+              style={{ animationDelay: `${Math.min(index % 20, 12) * 30}ms` }}
+            >
               <MovieCard movie={movie} highlight={query} />
             </div>
           ))}
@@ -139,9 +144,11 @@ export const SearchPage: React.FC = () => {
       <div ref={sentinelRef} className="h-4 mt-4" aria-hidden="true" />
 
       {!hasNextPage && allMovies.length > 0 && (
-        <p className="text-center text-text-muted text-sm mt-8 py-4">
-          Todos os resultados foram carregados 🎬
-        </p>
+        <div className="flex items-center gap-4 my-8">
+          <div className="flex-1 h-px bg-surface-overlay" />
+          <p className="text-text-muted text-sm font-medium">Você viu tudo 🎬</p>
+          <div className="flex-1 h-px bg-surface-overlay" />
+        </div>
       )}
     </div>
   );

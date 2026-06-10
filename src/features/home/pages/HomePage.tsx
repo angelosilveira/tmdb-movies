@@ -19,7 +19,6 @@ export const HomePage: React.FC = () => {
 
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  // Analytics
   useEffect(() => {
     analytics.pageView('/', 'Home - Filmes Populares');
   }, []);
@@ -28,16 +27,14 @@ export const HomePage: React.FC = () => {
   useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
-
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
           fetchNextPage();
         }
       },
-      { rootMargin: '200px' },
+      { rootMargin: '300px' },
     );
-
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
@@ -45,7 +42,14 @@ export const HomePage: React.FC = () => {
   const allMovies = data?.pages.flatMap((p) => p.items) ?? [];
   const totalResults = data?.pages[0]?.totalResults ?? 0;
 
-  if (isLoading) return <MovieGridSkeleton count={18} />;
+  if (isLoading) {
+    return (
+      <div className="animate-fade-in">
+        <PageHeader title="Em Alta" count={null} />
+        <MovieGridSkeleton count={18} />
+      </div>
+    );
+  }
 
   if (isError) {
     return (
@@ -59,45 +63,60 @@ export const HomePage: React.FC = () => {
 
   return (
     <div className="animate-fade-in">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-display-sm font-extrabold text-text-primary">
-          Filmes Populares
-        </h1>
-        <p className="text-text-secondary text-sm mt-1">
-          {totalResults.toLocaleString('pt-BR')} filmes encontrados
-        </p>
-      </div>
+      <PageHeader title="Em Alta" count={totalResults} />
 
-      {/* Grid */}
+      {/* Movie Grid */}
       <div
         className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4"
         role="list"
         aria-label="Lista de filmes populares"
       >
-        {allMovies.map((movie) => (
-          <div key={movie.id} role="listitem">
+        {allMovies.map((movie, index) => (
+          <div
+            key={movie.id}
+            role="listitem"
+            className="animate-fade-in"
+            style={{ animationDelay: `${Math.min(index % 20, 12) * 30}ms` }}
+          >
             <MovieCard movie={movie} />
           </div>
         ))}
       </div>
 
-      {/* Loading more */}
+      {/* Load more skeleton */}
       {isFetchingNextPage && (
-        <div className="mt-8">
+        <div className="mt-4">
           <MovieGridSkeleton count={6} />
         </div>
       )}
 
-      {/* Sentinel for infinite scroll */}
-      <div ref={sentinelRef} className="h-4 mt-4" aria-hidden="true" />
+      {/* Sentinel */}
+      <div ref={sentinelRef} className="h-8 mt-2" aria-hidden="true" />
 
-      {/* End of list */}
+      {/* End of content */}
       {!hasNextPage && allMovies.length > 0 && (
-        <p className="text-center text-text-muted text-sm mt-8 py-4">
-          Você chegou ao fim da lista! 🎬
-        </p>
+        <div className="flex items-center gap-4 my-8">
+          <div className="flex-1 h-px bg-surface-overlay" />
+          <p className="text-text-muted text-sm font-medium">Você viu tudo 🎬</p>
+          <div className="flex-1 h-px bg-surface-overlay" />
+        </div>
       )}
     </div>
   );
 };
+
+// ─── Page header ──────────────────────────────────────────────────────────────
+const PageHeader: React.FC<{ title: string; count: number | null }> = ({ title, count }) => (
+  <div className="flex items-baseline gap-3 mb-5">
+    <h1 className="text-xl sm:text-2xl font-extrabold text-text-primary tracking-tight">
+      {title}
+    </h1>
+    {count !== null && count > 0 && (
+      <span className="text-text-muted text-sm font-medium tabular-nums">
+        {count.toLocaleString('pt-BR')} filmes
+      </span>
+    )}
+    {/* Decorative line */}
+    <div className="flex-1 h-px bg-gradient-to-r from-brand-primary/40 to-transparent hidden sm:block ml-2" />
+  </div>
+);
