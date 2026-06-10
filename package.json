@@ -17,7 +17,8 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "prepare": "husky",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "preinstall": "node scripts/check-node-version.js"
   },
   "dependencies": {
     "@sentry/react": "^10.57.0",
@@ -75,5 +76,13 @@
     "*.{css,json,md}": [
       "prettier --write"
     ]
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "volta": {
+    "node": "22.22.2",
+    "npm": "10.9.2"
   }
 }
