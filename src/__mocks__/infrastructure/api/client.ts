@@ -1,7 +1,9 @@
+// Mock do apiClient para testes
+// O cliente real usa Authorization: Bearer — irrelevante nos testes unitários
 export const apiClient = {
-  get: jest.fn(),
-  post: jest.fn(),
-  put: jest.fn(),
+  get:    jest.fn(),
+  post:   jest.fn(),
+  put:    jest.fn(),
   delete: jest.fn(),
 };
 
