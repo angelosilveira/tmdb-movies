@@ -1,5 +1,3 @@
-// Mock do apiClient para testes
-// O cliente real usa Authorization: Bearer — irrelevante nos testes unitários
 export const apiClient = {
   get:    jest.fn(),
   post:   jest.fn(),
@@ -11,7 +9,6 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     public readonly message: string,
-    public readonly code?: string,
   ) {
     super(message);
     this.name = 'ApiError';
