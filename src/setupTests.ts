@@ -1,15 +1,14 @@
 import '@testing-library/jest-dom';
 
-// Mock IntersectionObserver (not available in jsdom)
-const mockIntersectionObserver = jest.fn();
-mockIntersectionObserver.mockReturnValue({
+// Mock IntersectionObserver
+const mockIntersectionObserver = jest.fn().mockReturnValue({
   observe: jest.fn(),
   unobserve: jest.fn(),
   disconnect: jest.fn(),
 });
 window.IntersectionObserver = mockIntersectionObserver;
 
-// Mock window.matchMedia
+// Mock matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: jest.fn().mockImplementation((query: string) => ({
@@ -36,19 +35,6 @@ const localStorageMock = (() => {
 })();
 Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 
-// Mock import.meta.env
-Object.defineProperty(import.meta, 'env', {
-  value: {
-    VITE_TMDB_API_KEY: 'test-api-key',
-    VITE_TMDB_BASE_URL: 'https://api.themoviedb.org/3',
-    VITE_TMDB_IMAGE_BASE_URL: 'https://image.tmdb.org/t/p',
-    VITE_SENTRY_DSN: '',
-    VITE_GA_MEASUREMENT_ID: '',
-    MODE: 'test',
-    DEV: false,
-  },
-});
-
 // Silence Sentry in tests
 jest.mock('@sentry/react', () => ({
   init: jest.fn(),
@@ -59,9 +45,13 @@ jest.mock('@sentry/react', () => ({
   replayIntegration: jest.fn(),
 }));
 
-// Silence analytics in tests
+// Silence GA in tests
 jest.mock('react-ga4', () => ({
   initialize: jest.fn(),
   send: jest.fn(),
   event: jest.fn(),
 }));
+
+// Polyfill TextEncoder/TextDecoder for React Router in jsdom
+import { TextEncoder, TextDecoder } from 'util';
+Object.assign(global, { TextEncoder, TextDecoder });

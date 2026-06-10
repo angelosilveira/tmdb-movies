@@ -3,7 +3,7 @@ import { screen, fireEvent } from '@testing-library/react';
 import { MovieCard } from '@/shared/components/ui/MovieCard';
 import { renderWithProviders, createMockMovie } from '../../helpers/testUtils';
 
-const movie = createMockMovie({ id: 1, title: 'Inception', vote_average: 8.8 });
+const movie = createMockMovie({ id: 1, title: 'Inception', rating: 8.8 });
 
 describe('MovieCard', () => {
   it('renders movie title', () => {
@@ -13,7 +13,8 @@ describe('MovieCard', () => {
 
   it('renders movie rating badge', () => {
     renderWithProviders(<MovieCard movie={movie} />);
-    expect(screen.getByText('8.8')).toBeInTheDocument();
+    // RatingBadge renders via aria-label
+    expect(screen.getByLabelText('Nota: 8.8')).toBeInTheDocument();
   });
 
   it('links to movie details page', () => {
@@ -56,15 +57,17 @@ describe('MovieCard', () => {
     expect(screen.getByAltText('Poster de Inception')).toBeInTheDocument();
   });
 
-  it('shows filled heart icon when movie is already favorited', () => {
-    renderWithProviders(<MovieCard movie={movie} />);
-
-    // Add to favorites
-    const btn = screen.getByRole('button', { name: /adicionar/i });
-    fireEvent.click(btn);
-
-    // Now check aria-pressed
-    const favoriteBtn = screen.getByRole('button', { name: /remover inception dos favoritos/i });
-    expect(favoriteBtn).toHaveAttribute('aria-pressed', 'true');
+  it('favorite button has aria-pressed reflecting favorite state', () => {
+    const { container } = renderWithProviders(<MovieCard movie={movie} />);
+    // Find button by partial aria-label match using querySelectorAll
+    const buttons = Array.from(container.querySelectorAll('button'));
+    const addBtn = buttons.find(b => b.getAttribute('aria-label')?.includes('Adicionar')) as HTMLElement;
+    expect(addBtn).toBeDefined();
+    expect(addBtn).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(addBtn);
+    const btnsAfter = Array.from(container.querySelectorAll('button'));
+    const removeBtn = btnsAfter.find(b => b.getAttribute('aria-label')?.includes('Remover')) as HTMLElement;
+    expect(removeBtn).toBeDefined();
+    expect(removeBtn).toHaveAttribute('aria-pressed', 'true');
   });
 });

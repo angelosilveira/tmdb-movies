@@ -1,10 +1,15 @@
 import React from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import * as Sentry from '@sentry/react';
 import { queryClient } from '@/infrastructure/cache/queryClient';
 import { FavoritesProvider } from '../contexts/FavoritesContext';
 import { ErrorState } from '@/shared/components/ui/ErrorState';
+
+// Use typeof check so this works in both Vite (import.meta) and Jest (process.env)
+const isDev = typeof process !== 'undefined'
+  ? process.env.NODE_ENV === 'development'
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  : (import.meta as any).env?.DEV === true;
 
 const GlobalErrorFallback = () => (
   <div className="min-h-screen bg-surface-base flex items-center justify-center px-4">
@@ -22,13 +27,11 @@ interface AppProvidersProps {
 
 export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
   return (
-    <Sentry.ErrorBoundary fallback={<GlobalErrorFallback />} showDialog={false}>
-      <QueryClientProvider client={queryClient}>
-        <FavoritesProvider>
-          {children}
-          {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
-        </FavoritesProvider>
-      </QueryClientProvider>
-    </Sentry.ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <FavoritesProvider>
+        {children}
+        {isDev && <ReactQueryDevtools initialIsOpen={false} />}
+      </FavoritesProvider>
+    </QueryClientProvider>
   );
 };
