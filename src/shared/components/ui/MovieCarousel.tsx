@@ -1,84 +1,94 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Movie } from '@/domain/entities/Movie';
-import { MovieCard } from './MovieCard';
 import { MovieCardSkeleton } from './Skeleton';
 import { clsx } from '@/shared/utils/format';
+import { useFavorites } from '@/app/contexts/FavoritesContext';
 
 interface MovieCarouselProps {
   title: string;
   movies: Movie[];
   isLoading?: boolean;
-  skeletonCount?: number;
 }
 
-const ChevronLeft: React.FC<{ className?: string }> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className={className}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-  </svg>
-);
+const VISIBLE = 6;
 
-const ChevronRight: React.FC<{ className?: string }> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className={className}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-  </svg>
-);
+const PLACEHOLDER = '/placeholder-poster.svg';
 
-const StarIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
+function ratingColor(level: string) {
+  if (level === 'excellent') return '#34d399';
+  if (level === 'good') return '#fbbf24';
+  return '#f87171';
+}
+
+const StarIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
   </svg>
 );
 
-const PlayIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+const HeartIcon = ({ filled }: { filled: boolean }) => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={filled ? 0 : 1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+  </svg>
+);
+
+const ChevronLeft = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+  </svg>
+);
+
+const ChevronRight = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+  </svg>
+);
+
+const PlayIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
     <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
   </svg>
 );
 
-function getRatingColor(level: string) {
-  if (level === 'excellent') return 'text-emerald-400';
-  if (level === 'good')      return 'text-amber-400';
-  return 'text-red-400';
-}
-
-export const MovieCarousel: React.FC<MovieCarouselProps> = ({
-  title,
-  movies,
-  isLoading = false,
-  skeletonCount = 8,
-}) => {
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
-  const VISIBLE = 6;
+export const MovieCarousel: React.FC<MovieCarouselProps> = ({ title, movies, isLoading = false }) => {
   const [offset, setOffset] = useState(0);
+  const [hovered, setHovered] = useState<number | null>(null);
+  const [isHoveringRow, setIsHoveringRow] = useState(false);
+  const leaveTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   const maxOffset = Math.max(0, movies.length - VISIBLE);
+  const canLeft = offset > 0;
+  const canRight = offset < maxOffset;
 
-  const scrollLeft = useCallback(() => {
-    setOffset((prev) => Math.max(0, prev - VISIBLE));
-    setActiveIndex(null);
+  const goLeft = useCallback(() => {
+    setOffset((p) => Math.max(0, p - VISIBLE));
+    setHovered(null);
   }, []);
 
-  const scrollRight = useCallback(() => {
-    setOffset((prev) => Math.min(maxOffset, prev + VISIBLE));
-    setActiveIndex(null);
+  const goRight = useCallback(() => {
+    setOffset((p) => Math.min(maxOffset, p + VISIBLE));
+    setHovered(null);
   }, [maxOffset]);
 
-  const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      setActiveIndex(index === activeIndex ? null : index);
-    }
-    if (e.key === 'Escape') setActiveIndex(null);
+  const handleRowEnter = () => {
+    clearTimeout(leaveTimerRef.current);
+    setIsHoveringRow(true);
+  };
+
+  const handleRowLeave = () => {
+    leaveTimerRef.current = setTimeout(() => {
+      setIsHoveringRow(false);
+      setHovered(null);
+    }, 200);
   };
 
   if (isLoading) {
     return (
-      <section className="mb-8" aria-label={`Carregando ${title}`}>
-        <SectionTitle title={title} />
+      <section className="mb-10" aria-label={title}>
+        <RowHeader title={title} showArrows={false} canLeft={false} canRight={false} onLeft={() => {}} onRight={() => {}} />
         <div className="grid grid-cols-6 gap-3">
-          {Array.from({ length: skeletonCount }).map((_, i) => <MovieCardSkeleton key={i} />)}
+          {Array.from({ length: 6 }).map((_, i) => <MovieCardSkeleton key={i} />)}
         </div>
       </section>
     );
@@ -86,43 +96,41 @@ export const MovieCarousel: React.FC<MovieCarouselProps> = ({
 
   if (!movies.length) return null;
 
-  const visibleMovies = movies.slice(offset, offset + VISIBLE);
-  const canLeft  = offset > 0;
-  const canRight = offset < maxOffset;
+  const visible = movies.slice(offset, offset + VISIBLE);
 
   return (
-    <section className="mb-10 group/row" aria-label={title}>
-      <div className="flex items-center justify-between mb-3 pr-1">
-        <SectionTitle title={title} />
-        <div className="flex items-center gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity duration-200">
-          <ArrowBtn onClick={scrollLeft} disabled={!canLeft} label="Anterior" icon={<ChevronLeft className="w-4 h-4" />} />
-          <ArrowBtn onClick={scrollRight} disabled={!canRight} label="Próximo" icon={<ChevronRight className="w-4 h-4" />} />
-        </div>
-      </div>
+    <section
+      className="mb-10"
+      aria-label={title}
+      onMouseEnter={handleRowEnter}
+      onMouseLeave={handleRowLeave}
+    >
+      <RowHeader
+        title={title}
+        showArrows={isHoveringRow}
+        canLeft={canLeft}
+        canRight={canRight}
+        onLeft={goLeft}
+        onRight={goRight}
+      />
 
-      <div ref={trackRef} className="relative overflow-visible">
-        <div className="grid grid-cols-6 gap-3 items-start">
-          {visibleMovies.map((movie, i) => {
-            const globalIndex = offset + i;
-            const isActive = activeIndex === globalIndex;
+      <div className="relative" style={{ paddingBottom: hovered !== null ? '0' : '0' }}>
+        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${VISIBLE}, 1fr)` }}>
+          {visible.map((movie, colIndex) => {
+            const globalIndex = offset + colIndex;
+            const isActive = hovered === globalIndex;
 
             return (
-              <div
+              <CarouselItem
                 key={movie.id}
-                className={clsx(
-                  'relative transition-all duration-300 ease-out cursor-pointer',
-                  isActive ? 'z-30' : 'z-10 hover:z-20',
-                )}
-                onMouseEnter={() => setActiveIndex(globalIndex)}
-                onMouseLeave={() => setActiveIndex(null)}
-                onKeyDown={(e) => handleKeyDown(e, globalIndex)}
-              >
-                {isActive ? (
-                  <ActiveCard movie={movie} onClose={() => setActiveIndex(null)} />
-                ) : (
-                  <MovieCard movie={movie} className="w-full" />
-                )}
-              </div>
+                movie={movie}
+                colIndex={colIndex}
+                totalVisible={VISIBLE}
+                isActive={isActive}
+                anyActive={hovered !== null}
+                onEnter={() => setHovered(globalIndex)}
+                onLeave={() => {}}
+              />
             );
           })}
         </div>
@@ -131,90 +139,231 @@ export const MovieCarousel: React.FC<MovieCarouselProps> = ({
   );
 };
 
-const SectionTitle: React.FC<{ title: string }> = ({ title }) => (
-  <div className="flex items-center gap-3">
-    <h2 className="text-base sm:text-lg font-bold text-text-primary tracking-tight">{title}</h2>
-    <div className="h-px w-16 bg-gradient-to-r from-brand-primary/50 to-transparent" />
+const RowHeader: React.FC<{
+  title: string;
+  showArrows: boolean;
+  canLeft: boolean;
+  canRight: boolean;
+  onLeft: () => void;
+  onRight: () => void;
+}> = ({ title, showArrows, canLeft, canRight, onLeft, onRight }) => (
+  <div className="flex items-center justify-between mb-3 h-8">
+    <div className="flex items-center gap-3">
+      <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">{title}</h2>
+      <div className="h-px w-12 bg-gradient-to-r from-brand-primary/60 to-transparent" />
+    </div>
+    <div
+      className="flex items-center gap-1.5 transition-all duration-300"
+      style={{ opacity: showArrows ? 1 : 0, transform: showArrows ? 'translateX(0)' : 'translateX(8px)' }}
+      aria-hidden={!showArrows}
+    >
+      <button
+        onClick={onLeft}
+        disabled={!canLeft}
+        aria-label="Voltar"
+        className={clsx(
+          'flex items-center justify-center w-8 h-8 rounded-full',
+          'border border-white/20 backdrop-blur-sm transition-all duration-150',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary',
+          canLeft
+            ? 'bg-black/60 text-white hover:bg-white hover:text-black hover:border-white cursor-pointer'
+            : 'bg-black/20 text-white/20 cursor-not-allowed border-white/5',
+        )}
+      >
+        <ChevronLeft />
+      </button>
+      <button
+        onClick={onRight}
+        disabled={!canRight}
+        aria-label="Avançar"
+        className={clsx(
+          'flex items-center justify-center w-8 h-8 rounded-full',
+          'border border-white/20 backdrop-blur-sm transition-all duration-150',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary',
+          canRight
+            ? 'bg-black/60 text-white hover:bg-white hover:text-black hover:border-white cursor-pointer'
+            : 'bg-black/20 text-white/20 cursor-not-allowed border-white/5',
+        )}
+      >
+        <ChevronRight />
+      </button>
+    </div>
   </div>
 );
 
-const ArrowBtn: React.FC<{
-  onClick: () => void;
-  disabled: boolean;
-  label: string;
-  icon: React.ReactNode;
-}> = ({ onClick, disabled, label, icon }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    aria-label={label}
-    className={clsx(
-      'p-1.5 rounded-full border transition-all duration-150',
-      'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary',
-      disabled
-        ? 'border-surface-overlay text-text-muted opacity-30 cursor-not-allowed'
-        : 'border-surface-overlay text-text-secondary hover:text-white hover:border-brand-primary hover:bg-brand-primary/20',
-    )}
-  >
-    {icon}
-  </button>
-);
+const CarouselItem: React.FC<{
+  movie: Movie;
+  colIndex: number;
+  totalVisible: number;
+  isActive: boolean;
+  anyActive: boolean;
+  onEnter: () => void;
+  onLeave: () => void;
+}> = ({ movie, colIndex, totalVisible, isActive, anyActive, onEnter, onLeave }) => {
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const favorited = isFavorite(movie.id);
+  const [imgErr, setImgErr] = useState(false);
+  const [pulse, setPulse] = useState(false);
 
-const ActiveCard: React.FC<{ movie: Movie; onClose: () => void }> = ({ movie, onClose }) => {
-  const PLACEHOLDER = '/placeholder-poster.svg';
-  const ratingColor = getRatingColor(movie.ratingLevel);
+  const handleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setPulse(true);
+    setTimeout(() => setPulse(false), 350);
+    toggleFavorite(movie);
+  };
+
+  const color = ratingColor(movie.ratingLevel);
+
+  const isFirst = colIndex === 0;
+  const isLast = colIndex === totalVisible - 1;
+
+  let expandOrigin = 'center';
+  if (isFirst) expandOrigin = 'left';
+  if (isLast) expandOrigin = 'right';
 
   return (
-    <Link
-      to={`/movie/${movie.id}`}
-      onClick={onClose}
-      className={clsx(
-        'block rounded-xl overflow-hidden',
-        'shadow-[0_8px_40px_rgba(0,0,0,0.8)]',
-        'ring-2 ring-brand-primary/60',
-        'animate-[expandCard_0.2s_ease-out_forwards]',
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary',
-      )}
-      aria-label={`Ver detalhes de ${movie.title}`}
-      style={{ transform: 'scale(1.08)', transformOrigin: 'center top' }}
+    <div
+      className="relative"
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+      style={{
+        zIndex: isActive ? 40 : anyActive ? 1 : 'auto',
+        transition: 'z-index 0s',
+      }}
     >
-      <div className="relative aspect-[2/3] overflow-hidden bg-surface-overlay">
-        <img
-          src={movie.posterUrl ?? PLACEHOLDER}
-          alt={`Poster de ${movie.title}`}
-          className="w-full h-full object-cover"
-          onError={(e) => { (e.target as HTMLImageElement).src = PLACEHOLDER; }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
+      <div
+        style={{
+          transform: isActive ? 'scale(1.45)' : anyActive ? 'scale(0.95)' : 'scale(1)',
+          transformOrigin: `${expandOrigin} center`,
+          transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+          borderRadius: '10px',
+          overflow: isActive ? 'visible' : 'hidden',
+          position: 'relative',
+        }}
+      >
+        <Link
+          to={`/movie/${movie.id}`}
+          className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary rounded-lg"
+          aria-label={`Ver ${movie.title}`}
+          tabIndex={0}
+        >
+          <div
+            className="relative rounded-lg overflow-hidden bg-surface-overlay"
+            style={{ aspectRatio: '2/3' }}
+          >
+            <img
+              src={imgErr ? PLACEHOLDER : (movie.posterUrl ?? PLACEHOLDER)}
+              alt={`Poster de ${movie.title}`}
+              className="w-full h-full object-cover"
+              loading="lazy"
+              onError={() => setImgErr(true)}
+            />
 
-        <div className="absolute inset-x-0 bottom-0 p-3">
-          <p className="text-white font-bold text-sm leading-tight mb-2 drop-shadow-lg line-clamp-2">
-            {movie.title}
-          </p>
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="flex items-center gap-1">
-              <StarIcon className={clsx('w-3.5 h-3.5', ratingColor)} />
-              <span className={clsx('text-xs font-bold tabular-nums', ratingColor)}>
-                {movie.ratingFormatted}
-              </span>
+            <div
+              className="absolute inset-0"
+              style={{
+                background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.2) 40%, transparent 70%)',
+                opacity: isActive ? 1 : 0.5,
+                transition: 'opacity 0.25s',
+              }}
+            />
+
+            <div
+              className="absolute top-1.5 left-1.5 flex items-center gap-0.5 px-1.5 py-0.5 rounded"
+              style={{
+                background: 'rgba(0,0,0,0.75)',
+                backdropFilter: 'blur(4px)',
+                color: color,
+                fontSize: '10px',
+                fontWeight: 700,
+                opacity: isActive ? 0 : 1,
+                transition: 'opacity 0.2s',
+              }}
+            >
+              <StarIcon />
+              <span style={{ color }}>{movie.ratingFormatted}</span>
             </div>
-            {movie.releaseYear && (
-              <span className="text-white/60 text-xs">{movie.releaseYear}</span>
+
+            <button
+              onClick={handleFavorite}
+              aria-label={favorited ? `Remover ${movie.title} dos favoritos` : `Adicionar ${movie.title} aos favoritos`}
+              aria-pressed={favorited}
+              className="absolute top-1.5 right-1.5 flex items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-secondary"
+              style={{
+                width: 26,
+                height: 26,
+                background: 'rgba(0,0,0,0.7)',
+                backdropFilter: 'blur(4px)',
+                border: favorited ? '1.5px solid rgba(251,113,133,0.5)' : '1.5px solid rgba(255,255,255,0.15)',
+                color: favorited ? '#fb7185' : 'rgba(255,255,255,0.6)',
+                transform: pulse ? 'scale(1.3)' : 'scale(1)',
+                transition: 'transform 0.2s, color 0.2s, border-color 0.2s',
+              }}
+            >
+              <HeartIcon filled={favorited} />
+            </button>
+
+            {favorited && (
+              <div
+                className="absolute inset-0 rounded-lg pointer-events-none"
+                style={{ boxShadow: 'inset 0 0 0 2px rgba(251,113,133,0.5)' }}
+              />
+            )}
+
+            {isActive && (
+              <div
+                className="absolute inset-x-0 bottom-0 p-2.5"
+                style={{ animation: 'fadeSlideUp 0.2s ease-out forwards' }}
+              >
+                <p className="text-white font-bold leading-tight mb-1.5 line-clamp-2"
+                  style={{ fontSize: '11px', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
+                  {movie.title}
+                </p>
+
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <span style={{ color, fontSize: '10px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <StarIcon />
+                    {movie.ratingFormatted}
+                  </span>
+                  {movie.releaseYear && (
+                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px' }}>{movie.releaseYear}</span>
+                  )}
+                </div>
+
+                {movie.overview && (
+                  <p style={{
+                    color: 'rgba(255,255,255,0.75)',
+                    fontSize: '9.5px',
+                    lineHeight: 1.45,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    marginBottom: '8px',
+                  }}>
+                    {movie.overview}
+                  </p>
+                )}
+
+                <div
+                  className="flex items-center justify-center gap-1.5 rounded-full cursor-pointer"
+                  style={{
+                    background: 'white',
+                    color: '#0f172a',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    padding: '5px 0',
+                  }}
+                >
+                  <PlayIcon />
+                  Ver detalhes
+                </div>
+              </div>
             )}
           </div>
-
-          {movie.overview && (
-            <p className="text-white/70 text-[11px] leading-relaxed line-clamp-3 mb-3">
-              {movie.overview}
-            </p>
-          )}
-
-          <span className="inline-flex items-center gap-1.5 bg-white text-surface-base text-xs font-bold px-3 py-1.5 rounded-full w-full justify-center">
-            <PlayIcon className="w-3 h-3" />
-            Ver detalhes
-          </span>
-        </div>
+        </Link>
       </div>
-    </Link>
+    </div>
   );
 };
