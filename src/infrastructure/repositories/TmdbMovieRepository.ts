@@ -1,14 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// INFRASTRUCTURE: TmdbMovieRepository
-//
-// SOLID — DIP: implementa IMovieRepository (contrato do domínio).
-//         SRP: responsável apenas por buscar dados do TMDB via HTTP.
-//         OCP: para trocar de API, cria-se outra implementação sem tocar no domínio.
-//
-// Clean Architecture: infraestrutura implementa contratos do domínio.
-// O domínio nunca sabe que o TMDB existe.
-// ─────────────────────────────────────────────────────────────────────────────
-
 import { IMovieRepository, PaginatedResult } from '@/domain/repositories/IMovieRepository';
 import { Movie }                             from '@/domain/entities/Movie';
 import { MovieDetails }                      from '@/domain/entities/MovieDetails';
@@ -23,9 +12,9 @@ import {
   adaptMovie,
   adaptMovieDetails,
   adaptPaginatedMovies,
+  adaptGenreList,
 } from '@/infrastructure/adapters/movie.adapter';
 import { Genre } from '@/domain/entities/MovieDetails';
-import { adaptGenreList } from '@/infrastructure/adapters/movie.adapter';
 
 export class TmdbMovieRepository implements IMovieRepository {
   async getPopular(page = 1): Promise<PaginatedResult<Movie>> {
@@ -34,10 +23,16 @@ export class TmdbMovieRepository implements IMovieRepository {
       { params: { page } },
     );
     const result = adaptPaginatedMovies(data);
-    return {
-      ...result,
-      items: result.items.map((p) => new Movie(p)),
-    };
+    return { ...result, items: result.items.map((p) => new Movie(p)) };
+  }
+
+  async getByGenre(genreId: number, page = 1): Promise<PaginatedResult<Movie>> {
+    const { data } = await apiClient.get<TmdbPaginatedResponse<TmdbMovie>>(
+      '/discover/movie',
+      { params: { with_genres: genreId, page, sort_by: 'popularity.desc' } },
+    );
+    const result = adaptPaginatedMovies(data);
+    return { ...result, items: result.items.map((p) => new Movie(p)) };
   }
 
   async search(query: string, page = 1): Promise<PaginatedResult<Movie>> {
@@ -46,10 +41,7 @@ export class TmdbMovieRepository implements IMovieRepository {
       { params: { query, page, include_adult: false } },
     );
     const result = adaptPaginatedMovies(data);
-    return {
-      ...result,
-      items: result.items.map((p) => new Movie(p)),
-    };
+    return { ...result, items: result.items.map((p) => new Movie(p)) };
   }
 
   async getById(id: number): Promise<MovieDetails> {

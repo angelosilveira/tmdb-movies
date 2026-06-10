@@ -84,6 +84,10 @@ export default {
           '0%': { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(200%)' },
         },
+        expandCard: {
+          '0%': { transform: 'scale(1)', opacity: '0.8' },
+          '100%': { transform: 'scale(1.08)', opacity: '1' },
+        },
       },
       screens: {
         'xs': '480px',
