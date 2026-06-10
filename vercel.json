@@ -5,8 +5,8 @@
   "framework": "vite",
   "rewrites": [
     {
-      "source": "/assets/(.*)",
-      "destination": "/assets/$1"
+      "source": "/api/tmdb/:path*",
+      "destination": "/api/:path*"
     },
     {
       "source": "/((?!api/).*)",

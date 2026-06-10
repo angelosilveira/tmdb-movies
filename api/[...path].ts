@@ -3,17 +3,20 @@ export const config = { runtime: 'edge' };
 export default async function handler(request: Request): Promise<Response> {
   const url = new URL(request.url);
 
-  // /api/tmdb/movie/popular → /movie/popular
-  const tmdbPath = url.pathname.replace(/^\/api\/tmdb/, '');
+  // Only handle /api/tmdb/* routes
+  if (!url.pathname.startsWith('/api/tmdb')) {
+    return new Response('Not found', { status: 404 });
+  }
+
+  // Strip /api/tmdb prefix → forward to TMDB API
+  const tmdbPath = url.pathname.replace(/^\/api\/tmdb/, '') || '/';
   const tmdbUrl  = `https://api.themoviedb.org/3${tmdbPath}${url.search}`;
 
-  // TMDB_READ_TOKEN — variável server-side (sem prefixo VITE_)
-  // Configure em: Vercel → Settings → Environment Variables
   const readToken = process.env.TMDB_READ_TOKEN;
 
   if (!readToken) {
     return new Response(
-      JSON.stringify({ error: 'TMDB_READ_TOKEN não configurado.' }),
+      JSON.stringify({ error: 'TMDB_READ_TOKEN não configurado na Vercel.' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } },
     );
   }
