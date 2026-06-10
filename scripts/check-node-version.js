@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-// Executado automaticamente antes de `npm install` (via preinstall)
-// Avisa o dev se estiver usando uma versão do Node fora do range suportado.
+// Executado automaticamente antes de `yarn install` (via preinstall)
 
 const [major] = process.versions.node.split('.').map(Number);
 const MIN = 18;
@@ -15,8 +14,8 @@ if (major < MIN) {
 ║  Versão mínima:    v${String(MIN).padEnd(38)}║
 ║  Versão recomend.: v${String(RECOMMENDED).padEnd(38)}║
 ║                                                              ║
-║  nvm install ${RECOMMENDED}   (instala e já usa)                        ║
-║  fnm install ${RECOMMENDED}   (instala e já usa)                        ║
+║  nvm install ${RECOMMENDED}   →  instala e já usa                        ║
+║  fnm install ${RECOMMENDED}   →  instala e já usa                        ║
 ║  volta install node@${RECOMMENDED}                                      ║
 ╚══════════════════════════════════════════════════════════════╝
 `);
@@ -31,8 +30,8 @@ if (major < RECOMMENDED) {
 ║  Versão atual:     v${process.version.padEnd(38)}║
 ║  Versão recomend.: v${String(RECOMMENDED).padEnd(38)}║
 ║                                                              ║
-║  nvm use    →  usa a versão do .nvmrc automaticamente        ║
-║  fnm use    →  usa a versão do .node-version                 ║
+║  nvm use    →  troca para a versão do .nvmrc (.node-version) ║
+║  fnm use    →  idem para usuários do fnm                     ║
 ╚══════════════════════════════════════════════════════════════╝
 `);
 }

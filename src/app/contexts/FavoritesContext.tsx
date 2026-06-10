@@ -1,4 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
+// ─────────────────────────────────────────────────────────────────────────────
+// FavoritesContext
+//
+// SOLID — SRP: gerencia apenas o estado global de favoritos no React.
+//         DIP: consome use cases do container, nunca o localStorage diretamente.
+//
+// Clean Architecture: camada de apresentação (React) orquestra use cases.
+// ─────────────────────────────────────────────────────────────────────────────
+
 import React, {
   createContext,
   useCallback,
@@ -7,11 +16,17 @@ import React, {
   useMemo,
   useReducer,
 } from 'react';
-import { FavoriteMovie, Movie, SortOption } from '@/shared/types/movie.types';
-import { adaptStoredFavorite } from '@/infrastructure/adapters';
+import { Movie }          from '@/domain/entities/Movie';
+import { FavoriteMovie }  from '@/domain/entities/FavoriteMovie';
+import {
+  toggleFavoriteUseCase,
+  getFavoritesUseCase,
+  removeFavoriteUseCase,
+  favoritesRepository,
+} from '@/app/container';
 import { analytics } from '@/infrastructure/analytics/ga';
 
-const FAVORITES_STORAGE_KEY = 'tmdb_favorites';
+export type SortOption = 'title-asc' | 'title-desc' | 'rating-desc' | 'rating-asc';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -20,38 +35,17 @@ interface FavoritesState {
   sortOption: SortOption;
 }
 
-// ─── Actions ──────────────────────────────────────────────────────────────────
-
 type FavoritesAction =
-  | { type: 'ADD_FAVORITE'; payload: Movie }
-  | { type: 'REMOVE_FAVORITE'; payload: number }
-  | { type: 'SET_SORT'; payload: SortOption }
-  | { type: 'HYDRATE'; payload: FavoriteMovie[] };
-
-// ─── Reducer ──────────────────────────────────────────────────────────────────
+  | { type: 'HYDRATE';        payload: FavoriteMovie[] }
+  | { type: 'SET_FAVORITES';  payload: FavoriteMovie[] }
+  | { type: 'SET_SORT';       payload: SortOption };
 
 function favoritesReducer(state: FavoritesState, action: FavoritesAction): FavoritesState {
   switch (action.type) {
     case 'HYDRATE':
-      return { ...state, favorites: action.payload };
-
-    case 'ADD_FAVORITE': {
-      if (state.favorites.some((f) => f.id === action.payload.id)) return state;
-      const newFavorite: FavoriteMovie = {
-        ...action.payload,
-        addedAt: new Date().toISOString(),
-      };
-      return { ...state, favorites: [...state.favorites, newFavorite] };
-    }
-
-    case 'REMOVE_FAVORITE':
-      return { ...state, favorites: state.favorites.filter((f) => f.id !== action.payload) };
-
-    case 'SET_SORT':
-      return { ...state, sortOption: action.payload };
-
-    default:
-      return state;
+    case 'SET_FAVORITES': return { ...state, favorites: action.payload };
+    case 'SET_SORT':      return { ...state, sortOption: action.payload };
+    default:              return state;
   }
 }
 
@@ -79,34 +73,11 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
     sortOption: 'title-asc',
   });
 
-  // Hydrate from localStorage — uses adaptStoredFavorite for forward/backward compat
+  // Hydrate from repository on mount
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(FAVORITES_STORAGE_KEY);
-      if (!stored) return;
-
-      const raw = JSON.parse(stored) as unknown[];
-      if (!Array.isArray(raw)) return;
-
-      // adaptStoredFavorite handles schema migrations (old snake_case → new camelCase)
-      const hydrated = raw
-        .map(adaptStoredFavorite)
-        .filter((m): m is FavoriteMovie => m !== null);
-
-      dispatch({ type: 'HYDRATE', payload: hydrated });
-    } catch {
-      console.warn('[Favorites] Failed to hydrate from localStorage');
-    }
+    const stored = getFavoritesUseCase.execute();
+    dispatch({ type: 'HYDRATE', payload: stored });
   }, []);
-
-  // Persist domain types to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(state.favorites));
-    } catch {
-      console.warn('[Favorites] Failed to persist to localStorage');
-    }
-  }, [state.favorites]);
 
   const isFavorite = useCallback(
     (id: number) => state.favorites.some((f) => f.id === id),
@@ -114,26 +85,27 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addFavorite = useCallback((movie: Movie) => {
-    dispatch({ type: 'ADD_FAVORITE', payload: movie });
+    // Só adiciona se ainda não for favorito (idempotente)
+    if (isFavorite(movie.id)) return;
+    const { favorites } = toggleFavoriteUseCase.execute({ movie });
+    dispatch({ type: 'SET_FAVORITES', payload: favorites });
     analytics.events.addToFavorites(movie.id, movie.title);
-  }, []);
+  }, [isFavorite]);
 
-  const removeFavorite = useCallback(
-    (id: number) => {
-      const movie = state.favorites.find((f) => f.id === id);
-      dispatch({ type: 'REMOVE_FAVORITE', payload: id });
-      if (movie) analytics.events.removeFromFavorites(id, movie.title);
-    },
-    [state.favorites],
-  );
+  const removeFavorite = useCallback((id: number) => {
+    const movie = state.favorites.find((f) => f.id === id);
+    const updated = removeFavoriteUseCase.execute(id);
+    dispatch({ type: 'SET_FAVORITES', payload: updated });
+    if (movie) analytics.events.removeFromFavorites(id, movie.title);
+  }, [state.favorites]);
 
-  const toggleFavorite = useCallback(
-    (movie: Movie) => {
-      if (isFavorite(movie.id)) removeFavorite(movie.id);
-      else addFavorite(movie);
-    },
-    [isFavorite, addFavorite, removeFavorite],
-  );
+  const toggleFavorite = useCallback((movie: Movie) => {
+    if (isFavorite(movie.id)) {
+      removeFavorite(movie.id);
+    } else {
+      addFavorite(movie);
+    }
+  }, [isFavorite, addFavorite, removeFavorite]);
 
   const setSortOption = useCallback((option: SortOption) => {
     dispatch({ type: 'SET_SORT', payload: option });
@@ -146,24 +118,21 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
       case 'title-desc':  return sorted.sort((a, b) => b.title.localeCompare(a.title));
       case 'rating-desc': return sorted.sort((a, b) => b.rating - a.rating);
       case 'rating-asc':  return sorted.sort((a, b) => a.rating - b.rating);
-      default: return sorted;
+      default:            return sorted;
     }
   }, [state.favorites, state.sortOption]);
 
-  const value = useMemo<FavoritesContextValue>(
-    () => ({
-      favorites: state.favorites,
-      sortOption: state.sortOption,
-      sortedFavorites,
-      isFavorite,
-      addFavorite,
-      removeFavorite,
-      toggleFavorite,
-      setSortOption,
-      totalFavorites: state.favorites.length,
-    }),
-    [state, sortedFavorites, isFavorite, addFavorite, removeFavorite, toggleFavorite, setSortOption],
-  );
+  const value = useMemo<FavoritesContextValue>(() => ({
+    favorites:      state.favorites,
+    sortOption:     state.sortOption,
+    sortedFavorites,
+    isFavorite,
+    addFavorite,
+    removeFavorite,
+    toggleFavorite,
+    setSortOption,
+    totalFavorites: state.favorites.length,
+  }), [state, sortedFavorites, isFavorite, addFavorite, removeFavorite, toggleFavorite, setSortOption]);
 
   return <FavoritesContext.Provider value={value}>{children}</FavoritesContext.Provider>;
 }

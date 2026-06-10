@@ -4,6 +4,7 @@ import { renderHook, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { FavoritesProvider, useFavorites } from '@/app/contexts/FavoritesContext';
+import { __resetFavorites } from '@/app/container';
 import { createMockMovie, createTestQueryClient } from '../../helpers/testUtils';
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -20,6 +21,7 @@ function wrapper({ children }: { children: React.ReactNode }) {
 describe('FavoritesContext', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    __resetFavorites();
     (window.localStorage.getItem as jest.Mock).mockReturnValue(null);
   });
 
@@ -79,16 +81,14 @@ describe('FavoritesContext', () => {
     expect(result.current.isFavorite(5)).toBe(false);
   });
 
-  it('persists favorites to localStorage', () => {
+  it('calls toggleFavoriteUseCase when adding a favorite', () => {
     const { result } = renderHook(() => useFavorites(), { wrapper });
+    const { toggleFavoriteUseCase } = require('@/app/container');
     const movie = createMockMovie({ id: 1 });
 
     act(() => result.current.addFavorite(movie));
 
-    expect(window.localStorage.setItem).toHaveBeenCalledWith(
-      'tmdb_favorites',
-      expect.stringContaining('"id":1'),
-    );
+    expect(toggleFavoriteUseCase.execute).toHaveBeenCalledWith({ movie });
   });
 
   it('sorts favorites by title A-Z', () => {

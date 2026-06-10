@@ -23,16 +23,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: yarn install --frozen-lockfile --legacy-peer-deps
 
       - name: Type check
-        run: npm run type-check
+        run: yarn type-check
 
       - name: Lint
-        run: npm run lint
+        run: yarn lint
 
   test:
     name: Unit Tests (Node ${{ matrix.node-version }})
@@ -40,7 +40,7 @@ jobs:
     needs: quality
 
     strategy:
-      fail-fast: false   # continua testando outras versões mesmo se uma falhar
+      fail-fast: false
       matrix:
         node-version: ['18', '20', '22']
 
@@ -52,13 +52,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: yarn install --frozen-lockfile --legacy-peer-deps
 
       - name: Run tests with coverage
-        run: npm run test:ci
+        run: yarn test:ci
         env:
           VITE_TMDB_API_KEY: ${{ secrets.VITE_TMDB_API_KEY }}
           VITE_TMDB_BASE_URL: https://api.themoviedb.org/3
@@ -85,13 +85,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: yarn install --frozen-lockfile --legacy-peer-deps
 
       - name: Build
-        run: npm run build
+        run: yarn build
         env:
           VITE_TMDB_API_KEY: ${{ secrets.VITE_TMDB_API_KEY }}
           VITE_TMDB_BASE_URL: https://api.themoviedb.org/3

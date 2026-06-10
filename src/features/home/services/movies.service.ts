@@ -1,43 +1,27 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// MOVIES SERVICE
-//
-// Responsabilidade: fazer as chamadas HTTP à API do TMDB e aplicar os adapters.
-// Os hooks e componentes recebem apenas tipos de domínio — nunca tipos raw.
+// movies.service.ts — Mantido como facade para compatibilidade com os testes.
+// Em Clean Architecture, os use cases substituem este serviço.
+// Os hooks agora consomem diretamente os use cases via container.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { getPopularMoviesUseCase, searchMoviesUseCase, getMovieDetailsUseCase } from '@/app/container';
+import { Genre } from '@/domain/entities/MovieDetails';
+import { Movie } from '@/domain/entities/Movie';
+import { MovieDetails } from '@/domain/entities/MovieDetails';
+import { PaginatedResult } from '@/domain/repositories/IMovieRepository';
 import { apiClient } from '@/infrastructure/api/client';
-import {
-  TmdbGenreListResponse,
-  TmdbMovie,
-  TmdbMovieDetails,
-  TmdbPaginatedResponse,
-} from '@/infrastructure/api/tmdb.types';
-import {
-  adaptGenreList,
-  adaptMovieDetails,
-  adaptPaginatedMovies,
-} from '@/infrastructure/adapters';
-import { Genre, Movie, MovieDetails, PaginatedResult } from '@/shared/types/movie.types';
+import { TmdbGenreListResponse } from '@/infrastructure/api/tmdb.types';
+import { adaptGenreList } from '@/infrastructure/adapters/movie.adapter';
 
 export const moviesService = {
-  getPopular: async (page = 1): Promise<PaginatedResult<Movie>> => {
-    const { data } = await apiClient.get<TmdbPaginatedResponse<TmdbMovie>>('/movie/popular', {
-      params: { page },
-    });
-    return adaptPaginatedMovies(data);
-  },
+  getPopular: (page = 1): Promise<PaginatedResult<Movie>> =>
+    getPopularMoviesUseCase.execute({ page }),
 
-  getDetails: async (id: number): Promise<MovieDetails> => {
-    const { data } = await apiClient.get<TmdbMovieDetails>(`/movie/${id}`);
-    return adaptMovieDetails(data);
-  },
+  getDetails: (id: number): Promise<MovieDetails> =>
+    getMovieDetailsUseCase.execute({ id }),
 
-  search: async (query: string, page = 1): Promise<PaginatedResult<Movie>> => {
-    const { data } = await apiClient.get<TmdbPaginatedResponse<TmdbMovie>>('/search/movie', {
-      params: { query, page, include_adult: false },
-    });
-    return adaptPaginatedMovies(data);
-  },
+  search: (query: string, page = 1): Promise<PaginatedResult<Movie>> =>
+    searchMoviesUseCase.execute({ query, page }),
 
   getGenres: async (): Promise<Genre[]> => {
     const { data } = await apiClient.get<TmdbGenreListResponse>('/genre/movie/list');

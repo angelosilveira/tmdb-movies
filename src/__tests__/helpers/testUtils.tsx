@@ -4,14 +4,19 @@ import { render, RenderOptions } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, MemoryRouterProps } from 'react-router-dom';
 import { FavoritesProvider } from '@/app/contexts/FavoritesContext';
-import { Movie, MovieDetails, FavoriteMovie, RatingLevel } from '@/shared/types/movie.types';
 
-// ─── Mock factories — use domain types, not raw API types ─────────────────────
+// ─── Domain entity imports (for tests that use domain layer) ──────────────────
+import { Movie } from '@/domain/entities/Movie';
+import { MovieDetails } from '@/domain/entities/MovieDetails';
+import { FavoriteMovie } from '@/domain/entities/FavoriteMovie';
+import type { RatingLevel } from '@/domain/entities/Movie';
 
-export function createMockMovie(overrides?: Partial<Movie>): Movie {
-  const rating = overrides?.rating ?? 7.5;
+// ─── Mock factories — return proper domain entity instances ───────────────────
+
+export function createMockMovie(overrides: Partial<ConstructorParameters<typeof Movie>[0]> = {}): Movie {
+  const rating = overrides.rating ?? 7.5;
   const ratingLevel: RatingLevel = rating >= 7.5 ? 'excellent' : rating >= 6 ? 'good' : 'average';
-  return {
+  return new Movie({
     id: 1,
     title: 'Test Movie',
     overview: 'A test movie overview.',
@@ -29,37 +34,39 @@ export function createMockMovie(overrides?: Partial<Movie>): Movie {
     originalLanguage: 'en',
     originalTitle: 'Test Movie',
     ...overrides,
-  };
+  });
 }
 
-export function createMockMovieDetails(overrides?: Partial<MovieDetails>): MovieDetails {
+export function createMockMovieDetails(
+  overrides: Partial<ConstructorParameters<typeof MovieDetails>[0]> = {},
+): MovieDetails {
   const base = createMockMovie(overrides);
-  return {
-    ...base,
-    genres: [
-      { id: 28, name: 'Ação' },
-      { id: 12, name: 'Aventura' },
-    ],
+  return new MovieDetails({
+    ...base.toPlainObject(),
+    genres: [{ id: 28, name: 'Ação' }, { id: 12, name: 'Aventura' }],
     runtime: 120,
     runtimeFormatted: '2h',
     status: 'Released',
     tagline: 'A great tagline',
-    budget: 10000000,
-    revenue: 50000000,
+    budget: 10_000_000,
+    revenue: 50_000_000,
     homepage: null,
     imdbId: 'tt1234567',
     productionCompanies: [],
     spokenLanguages: [{ englishName: 'English', isoCode: 'en', name: 'English' }],
     ...overrides,
-  };
+  });
 }
 
-export function createMockFavoriteMovie(overrides?: Partial<FavoriteMovie>): FavoriteMovie {
-  return {
-    ...createMockMovie(),
+export function createMockFavoriteMovie(
+  overrides: Partial<ConstructorParameters<typeof FavoriteMovie>[0]> = {},
+): FavoriteMovie {
+  const base = createMockMovie(overrides);
+  return new FavoriteMovie({
+    ...base.toPlainObject(),
     addedAt: '2024-01-01T00:00:00.000Z',
     ...overrides,
-  };
+  });
 }
 
 // ─── Test QueryClient ─────────────────────────────────────────────────────────
@@ -73,7 +80,7 @@ export function createTestQueryClient(): QueryClient {
   });
 }
 
-// ─── Wrapper ──────────────────────────────────────────────────────────────────
+// ─── Render wrapper ───────────────────────────────────────────────────────────
 
 interface WrapperOptions extends RenderOptions {
   routerProps?: MemoryRouterProps;
@@ -99,10 +106,7 @@ function AllProviders({
   );
 }
 
-export function renderWithProviders(
-  ui: React.ReactElement,
-  options?: WrapperOptions,
-) {
+export function renderWithProviders(ui: React.ReactElement, options?: WrapperOptions) {
   const { routerProps, queryClient, ...renderOptions } = options ?? {};
   return render(ui, {
     wrapper: ({ children }) => (

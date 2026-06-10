@@ -7,6 +7,8 @@ const config: Config = {
   moduleNameMapper: {
     // Path aliases — MUST come before mocks
     '^@/infrastructure/analytics/ga(.*)$': '<rootDir>/src/__mocks__/infrastructure/analytics/ga.ts',
+    '^@/infrastructure/api/client(.*)$': '<rootDir>/src/__mocks__/infrastructure/api/client.ts',
+    '^@/app/container(.*)$': '<rootDir>/src/__mocks__/app/container.ts',
     '^@/infrastructure/monitoring/sentry(.*)$': '<rootDir>/src/__mocks__/infrastructure/monitoring/sentry.ts',
     // Note: api/client is mocked per-test via jest.mock() — keep real for adapter tests
     '^@/(.*)$': '<rootDir>/src/$1',
