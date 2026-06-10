@@ -4,7 +4,6 @@ import { renderHook, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { FavoritesProvider, useFavorites } from '@/app/contexts/FavoritesContext';
-import { __resetFavorites } from '@/app/container';
 import { createMockMovie, createTestQueryClient } from '../../helpers/testUtils';
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -21,7 +20,7 @@ function wrapper({ children }: { children: React.ReactNode }) {
 describe('FavoritesContext', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    __resetFavorites();
+    (require('@/app/container').favoritesRepository.clear as jest.Mock)();
     (window.localStorage.getItem as jest.Mock).mockReturnValue(null);
   });
 
