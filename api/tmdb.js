@@ -1,25 +1,25 @@
 export default async function handler(req, res) {
-  const path  = req.query.path ? '/' + req.query.path : '/';
-  const query = new URLSearchParams();
+  const { path = '/', ...params } = req.query;
 
-  for (const [k, v] of Object.entries(req.query)) {
-    if (k !== 'path') query.append(k, v);
+  const query = new URLSearchParams(params);
+  const tmdbUrl = `https://api.themoviedb.org/3/${path}?${query}`;
+
+  const token = process.env.TMDB_READ_TOKEN;
+
+  if (!token) {
+    return res.status(500).json({ error: 'TMDB_READ_TOKEN não configurado.' });
   }
 
-  const apiKey = process.env.TMDB_API_KEY;
-  query.append('api_key', apiKey);
-  query.append('language', 'pt-BR');
-
-  const tmdbUrl = `https://api.themoviedb.org/3${path}?${query.toString()}`;
-
-  const response = await fetch(tmdbUrl, {
-    headers: { 'Accept': 'application/json' },
+  const upstream = await fetch(tmdbUrl, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept':        'application/json',
+    },
   });
 
-  const data = await response.json();
+  const data = await upstream.json();
 
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET');
   res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
-  res.status(response.status).json(data);
+  res.status(upstream.status).json(data);
 }
